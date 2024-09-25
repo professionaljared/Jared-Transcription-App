@@ -1,0 +1,6 @@
+pywebview==3.5
+vosk==0.3.45
+transformers==4.28.0
+torch==1.13.1
+ffmpeg-python==0.2.0
+nltk==3.8.1
