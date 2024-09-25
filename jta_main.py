@@ -8,22 +8,18 @@ from vosk import Model, KaldiRecognizer
 import threading
 import platform
 
-# Path to Vosk model (make sure it's downloaded and placed here)
-MODEL_PATH = "model"
+MODEL_PATH = "model"  # Path where the model will be downloaded
 
-# Function to extract audio from video (if needed)
+# Function to extract audio from video using bundled ffmpeg
 def extract_audio_from_video(video_file_path, output_audio_path):
-    # Determine the platform and choose the correct ffmpeg executable
     if platform.system() == "Windows":
         ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
     else:
         ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
-    
-    # Make sure the ffmpeg executable is executable (for macOS/Linux)
+
     if platform.system() != "Windows":
         os.chmod(ffmpeg_path, 0o755)
 
-    # Execute the ffmpeg command
     command = f'"{ffmpeg_path}" -i "{video_file_path}" -ac 1 -ar 16000 -vn "{output_audio_path}"'
     os.system(command)
 
@@ -69,15 +65,12 @@ def transcribe_file():
             extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path  
 
-        # Transcribe the audio file
         transcript = transcribe_audio(file_path)
         
-        # Ask where to save the transcript file
         save_transcript_path = filedialog.asksaveasfilename(title="Save Transcript as", defaultextension=".txt")
         with open(save_transcript_path, "w") as f:
             f.write(transcript)
         
-        # Delete the temporary audio file if it was created
         if temp_audio_path and os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
 
@@ -99,9 +92,7 @@ root = tk.Tk()
 root.title("JTA - Beetroot (1.0)")
 root.geometry("600x400")
 
-# Add a ttk button for selecting a file and transcribing
 select_file_button = ttk.Button(root, text="Select File and Transcribe", command=start_transcription)
 select_file_button.pack(pady=20)
 
-# Start the Tkinter loop
 root.mainloop()
