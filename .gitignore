@@ -2,3 +2,6 @@
 notes.txt
 /model/.gitkeep
 Dockerfile
+PyInstaller-Dockerfile
+/build
+/output

@@ -1,0 +1,15 @@
+# Ignore unnecessary files and directories
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+output
+build
+dist
+notes.txt
+*.log
+*.md
+#*.spec
+model
+ffmpeg/macos/*   # Ignore macOS binaries since they aren't needed for the Windows build
