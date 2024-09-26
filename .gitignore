@@ -5,3 +5,4 @@ Dockerfile
 PyInstaller-Dockerfile
 /build
 /output
+jta_main_optimized.py
