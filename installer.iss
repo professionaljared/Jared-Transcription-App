@@ -11,7 +11,7 @@ SolidCompression=yes
 [Files]
 Source: "dist\jta_main.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\download_model.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\ffmpeg\windows\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\JTA"; Filename: "{app}\jta_main.exe"
