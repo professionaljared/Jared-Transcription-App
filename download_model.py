@@ -7,7 +7,7 @@ import zipfile
 MODEL_OPTIONS = {
     "Small English Model": "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip",
     "Medium English Model": "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22.zip",
-    "Large English Model": "https://alphacephei.com/vosk/models/vosk-model-en-us-0.42.zip"
+    "Large English Model": "https://alphacephei.com/vosk/models/vosk-model-en-us-0.42-gigaspeech.zip"
 }
 
 def download_model(url, output_dir):
@@ -42,7 +42,7 @@ def start_download():
             download_button.config(state=tk.NORMAL)
 
 root = tk.Tk()
-root.title("JTA - Beetroot Model Downloader")
+root.title("JTA Model Downloader")
 root.geometry("400x200")
 
 model_var = tk.StringVar()
