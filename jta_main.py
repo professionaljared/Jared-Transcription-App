@@ -83,41 +83,45 @@ def transcribe_file():
         select_file_button.config(state=tk.DISABLED)
         progress_bar['value'] = 0
         progress_label.config(text="Starting...")
-        
+
         file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
-        
+
         if not file_path:
             select_file_button.config(state=tk.NORMAL)
             return
-        
-        temp_audio_path = None
-        
+
+        temp_audio_path = "temp_extracted_audio.wav"
+
+        # Check if temp_extracted_audio.wav exists, and delete it if found
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
         if file_path.endswith(".mp4"):
-            temp_audio_path = "temp_extracted_audio2.wav"
             extract_audio_from_video(file_path, temp_audio_path)
-            file_path = temp_audio_path  
+            file_path = temp_audio_path
 
         # Transcribe the audio file
         transcript = transcribe_audio(file_path)
-        
+
         # Ask where to save the transcript file
         save_transcript_path = filedialog.asksaveasfilename(title="Save Transcript as", defaultextension=".txt")
         with open(save_transcript_path, "w") as f:
             f.write(transcript)
-        
+
         # Delete the temporary audio file if it was created
         if temp_audio_path and os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
 
         messagebox.showinfo("Success", "Transcription completed successfully!")
         progress_label.config(text="Transcription completed!")
-    
+
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
         progress_label.config(text="An error occurred.")
-    
+
     finally:
         select_file_button.config(state=tk.NORMAL)
+
 
 # Function to start the transcription process in a separate thread
 def start_transcription():
