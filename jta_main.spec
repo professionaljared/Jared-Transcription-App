@@ -1,44 +1,41 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+# jta_main.spec
+block_cipher = None
 
 a = Analysis(
-    ['jta_main.py'],
-    pathex=[],
+    ['jta_main_optimized.py'],
+    pathex=['/path/to/your/project'],
     binaries=[],
-    datas=[],
+    datas=[
+        ('model', 'model'),  # Include the Vosk model folder
+        ('ffmpeg/macos/ffmpeg', './ffmpeg')  # Include ffmpeg for macOS
+    ],
     hiddenimports=[],
     hookspath=[],
-    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
-    noarchive=False,
-    optimize=0,
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
 )
-pyz = PYZ(a.pure)
-
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
-    name='jta_main',
+    exclude_binaries=True,
+    name='JTA',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    console=False,  # Set to False to hide the console window
 )
-app = BUNDLE(
+coll = COLLECT(
     exe,
-    name='jta_main.app',
-    icon=None,
-    bundle_identifier=None,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    name='JTA'
 )

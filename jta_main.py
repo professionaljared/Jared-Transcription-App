@@ -62,7 +62,7 @@ def transcribe_audio(audio_file_path):
         root.update_idletasks()
 
     while True:
-        data = wf.readframes(4000)
+        data = wf.readframes(32000)
         if len(data) == 0:
             break
         
@@ -93,7 +93,7 @@ def transcribe_file():
         temp_audio_path = None
         
         if file_path.endswith(".mp4"):
-            temp_audio_path = "temp_extracted_audio.wav"
+            temp_audio_path = "temp_extracted_audio2.wav"
             extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path  
 
@@ -126,7 +126,7 @@ def start_transcription():
 
 # Tkinter GUI setup
 root = tk.Tk()
-root.title("JTA - Beetroot (1.0)")
+root.title("JTA - Turnip (1.1)")
 root.geometry("600x400")
 
 # Create a ttk style and set a theme
@@ -134,14 +134,14 @@ style = ttk.Style()
 style.theme_use("clam")
 
 # Configure a custom style for ttk labels
-style.configure("Custom.TLabel", background="#ae5985", foreground="black", font=("Helvetica", 12), padding=10)
+style.configure("Custom.TLabel", background="#3aae48", foreground="black", font=("Helvetica", 12), padding=10)
 
 # Create a frame to organize widgets
 main_frame = ttk.Frame(root)
 main_frame.grid(row=0, column=0, sticky="nsew")
 
 # Add a ttk label
-welcome_label = ttk.Label(main_frame, text="Welcome to JTA - Beetroot (1.0)", style="Custom.TLabel")
+welcome_label = ttk.Label(main_frame, text="Welcome to JTA - Turnip (1.1)", style="Custom.TLabel")
 welcome_label.grid(row=0, column=0, padx=10, pady=10)
 
 # Add a ttk button for selecting a file and transcribing
