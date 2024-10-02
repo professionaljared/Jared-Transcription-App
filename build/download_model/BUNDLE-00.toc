@@ -1,4 +1,0 @@
-([('download_model',
-   '/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter '
-   'App/dist/download_model',
-   'EXECUTABLE')],)

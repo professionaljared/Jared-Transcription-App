@@ -1,35 +1,47 @@
 # jta_main.spec
+
 block_cipher = None
 
 a = Analysis(
-    ['jta_main_optimized.py'],
-    pathex=['/path/to/your/project'],
+    ['jta_main.py'],
+    pathex=['/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App'],
     binaries=[],
     datas=[
-        ('model', 'model'),  # Include the Vosk model folder
-        ('ffmpeg/macos/ffmpeg', './ffmpeg')  # Include ffmpeg for macOS
+        ('/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/venv310/lib/python3.10/site-packages/vosk', 'vosk'),
+        ('/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/model', 'model'),
+        ('/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/ffmpeg', 'ffmpeg'),
     ],
     hiddenimports=[],
     hookspath=[],
+    hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
+    noarchive=False,
 )
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
-    name='JTA',
+    name='jta_main',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,  # Set to False to hide the console window
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    icon=None,  # Specify an icon if needed, or leave as None
 )
+
 coll = COLLECT(
     exe,
     a.binaries,
@@ -37,5 +49,6 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=True,
-    name='JTA'
+    upx_exclude=[],
+    name='jta_main',
 )

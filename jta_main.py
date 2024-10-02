@@ -1,38 +1,28 @@
 import os
 import wave
 import json
-import ffmpeg
+import subprocess
+import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk  # Import ttk for themed widgets
-from vosk import Model, KaldiRecognizer
 import threading
 import platform  # Import platform to detect the operating system
 
-# Function to find the Vosk model path dynamically
-def find_vosk_model():
-    model_dir = "model"
-    if not os.path.exists(model_dir):
-        raise FileNotFoundError("Model directory not found. Please download a Vosk model using the download_model script.")
-    
-    # Look for any folders inside the 'model' directory
-    available_models = [d for d in os.listdir(model_dir) if os.path.isdir(os.path.join(model_dir, d))]
-    
-    if not available_models:
-        raise FileNotFoundError("No Vosk model found in the 'model' directory. Please download a Vosk model first.")
-    
-    # Use the first model found (you can adjust this logic if needed)
-    return os.path.join(model_dir, available_models[0])
+# Import Vosk modules
+try:
+    from vosk import Model, KaldiRecognizer
+except ImportError:
+    # If vosk is not found, inform the user
+    messagebox.showerror("Error", "The 'vosk' library is not installed. Please make sure it is bundled correctly with the application.")
+    sys.exit(1)
 
-# Set the dynamic MODEL_PATH
-MODEL_PATH = find_vosk_model()
-
-# Function to extract audio from video (using the bundled ffmpeg)
+# Function to extract the audio from a video file (using the bundled ffmpeg)
 def extract_audio_from_video(video_file_path, output_audio_path):
-    if platform.system() == "Windows":
-        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
+    if getattr(sys, 'frozen', False):
+        ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg", "windows", "ffmpeg.exe" if platform.system() == "Windows" else "macos", "ffmpeg")
     else:
-        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
+        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe" if platform.system() == "Windows" else "macos", "ffmpeg")
     
     if platform.system() != "Windows":
         os.chmod(ffmpeg_path, 0o755)
@@ -42,7 +32,19 @@ def extract_audio_from_video(video_file_path, output_audio_path):
 
 # Function to transcribe audio using Vosk
 def transcribe_audio(audio_file_path):
-    model = Model(MODEL_PATH)
+    # Determine the correct model path
+    if getattr(sys, 'frozen', False):
+        # If running as a bundled app
+        base_path = os.path.dirname(sys.executable)
+        model_path = os.path.join(base_path, "model/vosk-model-en-us-0.22")
+    else:
+        # If running in a regular Python environment
+        model_path = os.path.join(os.getcwd(), "model/vosk-model-en-us-0.22")
+    
+    if not os.path.exists(model_path):
+        raise FileNotFoundError("Vosk model directory not found. Please make sure the model is included with the application.")
+    
+    model = Model(model_path)
     wf = wave.open(audio_file_path, "rb")
     if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
         raise ValueError("Audio file must be WAV format mono PCM.")
@@ -78,19 +80,33 @@ def transcribe_audio(audio_file_path):
     return final_transcript
 
 # Function to handle the full transcription process
+
+def get_resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        # For PyInstaller frozen app
+        base_path = sys._MEIPASS
+    elif getattr(sys, 'frozen', False):
+        # For cx_Freeze frozen app
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # When running in a normal Python environment
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 def transcribe_file():
     try:
         select_file_button.config(state=tk.DISABLED)
         progress_bar['value'] = 0
         progress_label.config(text="Starting...")
-
+        
         file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
-
+        
         if not file_path:
             select_file_button.config(state=tk.NORMAL)
             return
-
-        temp_audio_path = "temp_extracted_audio.wav"
+        
+        temp_audio_path = get_resource_path("temp_extracted_audio.wav")
 
         # Check if temp_extracted_audio.wav exists, and delete it if found
         if os.path.exists(temp_audio_path):
@@ -100,30 +116,34 @@ def transcribe_file():
             extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path
 
+            # Check if the extraction succeeded
+            if not os.path.exists(temp_audio_path):
+                raise FileNotFoundError(f"Audio file not found at: {temp_audio_path}")
+
         # Transcribe the audio file
         transcript = transcribe_audio(file_path)
-
+        
         # Ask where to save the transcript file
         save_transcript_path = filedialog.asksaveasfilename(title="Save Transcript as", defaultextension=".txt")
         with open(save_transcript_path, "w") as f:
             f.write(transcript)
-
+        
         # Delete the temporary audio file if it was created
         if temp_audio_path and os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
 
         messagebox.showinfo("Success", "Transcription completed successfully!")
         progress_label.config(text="Transcription completed!")
-
+    
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
         progress_label.config(text="An error occurred.")
-
+    
     finally:
         select_file_button.config(state=tk.NORMAL)
 
-
 # Function to start the transcription process in a separate thread
+
 def start_transcription():
     thread = threading.Thread(target=transcribe_file)
     thread.start()

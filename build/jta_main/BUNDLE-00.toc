@@ -1,4 +1,0 @@
-([('jta_main',
-   '/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter '
-   'App/dist/jta_main',
-   'EXECUTABLE')],)
