@@ -1,39 +1,33 @@
-import sys
-from cx_Freeze import setup, Executable
 import os
+import platform
+from cx_Freeze import setup, Executable
 
-# Build options
+# Determine the paths for included resources like ffmpeg and its libraries
+if platform.system() == "Windows":
+    ffmpeg_bin = os.path.join("ffmpeg", "windows", "ffmpeg.exe")
+else:
+    ffmpeg_bin = os.path.join("ffmpeg", "macos", "ffmpeg")
+    # ffmpeg_lib = os.path.join("ffmpeg", "macos", "lib")
+
+# Add the model folder to be included
+model_folder = "model"
+
+# Build executable options
 build_exe_options = {
-    "packages": ["os", "tkinter", "vosk"],  # Include necessary packages
-    "excludes": [],  # Exclude any unnecessary packages if needed
+    "packages": ["os", "wave", "json", "subprocess", "tkinter", "threading", "tempfile", "platform"],
     "include_files": [
-        ("/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/ffmpeg", "ffmpeg"),  # Path to the ffmpeg folder
-        ("/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/model", "model"),    # Path to the model folder
-        ("/Users/joeroberts/Documents/MarcyLabWorld/environment/Converter App/venv310/lib/python3.10/site-packages/vosk", "vosk"),  # Path to the vosk library
+        (ffmpeg_bin, "ffmpeg/macos/ffmpeg"),  # Include the ffmpeg binary
+        # (ffmpeg_lib, "ffmpeg/macos/lib"),  # Include the FFmpeg libraries for macOS
+        (model_folder, "model")  # Include the Vosk model directory
     ],
+    "optimize": 2
 }
 
-# Define the build directory to be 'output'
-build_dir = "output"
-
-# Target executable options
-executables = [
-    Executable(
-        "jta_main.py"  # Path to your main Python file
-    )
-]
-
-# Setup configuration
+# Application setup
 setup(
-    name="JTA",
+    name="JTA - Turnip",
     version="1.1",
     description="Jared Transcription App",
     options={"build_exe": build_exe_options},
-    executables=executables
+    executables=[Executable("jta_main.py", target_name="jta_main", base="Console" if platform.system() != "Windows" else None)]
 )
-
-# Moving the build result to the desired directory
-if os.path.exists(build_dir):
-    print(f"Build will be placed in '{build_dir}'")
-else:
-    os.makedirs(build_dir)

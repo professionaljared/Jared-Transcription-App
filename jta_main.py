@@ -1,45 +1,90 @@
 import os
 import wave
 import json
+import shutil
 import subprocess
 import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from tkinter import ttk  # Import ttk for themed widgets
+from tkinter import ttk
 import threading
-import platform  # Import platform to detect the operating system
+import platform
+import tempfile
+from vosk import Model, KaldiRecognizer  # Import Vosk Model and KaldiRecognizer
 
-# Import Vosk modules
-try:
-    from vosk import Model, KaldiRecognizer
-except ImportError:
-    # If vosk is not found, inform the user
-    messagebox.showerror("Error", "The 'vosk' library is not installed. Please make sure it is bundled correctly with the application.")
-    sys.exit(1)
 
-# Function to extract the audio from a video file (using the bundled ffmpeg)
-def extract_audio_from_video(video_file_path, output_audio_path):
-    if getattr(sys, 'frozen', False):
-        ffmpeg_path = os.path.join(sys._MEIPASS, "ffmpeg", "windows", "ffmpeg.exe" if platform.system() == "Windows" else "macos", "ffmpeg")
+# Define the documents folder and temp audio storage location
+def get_documents_folder():
+    if platform.system() == "Windows":
+        return os.path.join(os.environ['USERPROFILE'], 'Documents')
     else:
-        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe" if platform.system() == "Windows" else "macos", "ffmpeg")
+        return os.path.join(os.environ['HOME'], 'Documents')
+
+def get_temp_audio_path():
+    documents_folder = get_documents_folder()
+    temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
+    os.makedirs(temp_audio_folder, exist_ok=True)
+    return os.path.join(temp_audio_folder, "temp_extracted_audio.wav")
+
+# Get the ffmpeg path depending on OS
+def get_ffmpeg_path():
+    """
+    Determine the correct path for the ffmpeg binary based on the platform and whether the app is frozen (cx_Freeze).
+    """
+    # Check if the application is frozen (packaged by cx_Freeze)
+    if getattr(sys, 'frozen', False):
+        # If frozen, adjust the ffmpeg path based on the app's executable location
+        base_path = os.path.dirname(sys.executable)
+        if platform.system() == "Darwin":  # macOS
+            ffmpeg_path = os.path.join(base_path, "ffmpeg", "macos", "ffmpeg")
+        elif platform.system() == "Windows":
+            ffmpeg_path = os.path.join(base_path, "ffmpeg", "windows", "ffmpeg.exe")
+        else:
+            raise OSError("Unsupported platform for frozen build.")
+    else:
+        # If not frozen, use the current working directory (development environment)
+        if platform.system() == "Darwin":  # macOS
+            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
+        elif platform.system() == "Windows":
+            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
+        else:
+            raise OSError("Unsupported platform for development environment.")
+
+    return ffmpeg_path
+
+# Example usage:
+ffmpeg_path = get_ffmpeg_path()
+print(f"FFmpeg path: {ffmpeg_path}")
+
+# Extract audio from video using ffmpeg
+def extract_audio_from_video(video_file_path, output_audio_path):
+    ffmpeg_path = get_ffmpeg_path()
     
+    # Ensure ffmpeg has executable permissions on macOS
     if platform.system() != "Windows":
         os.chmod(ffmpeg_path, 0o755)
     
     command = f'"{ffmpeg_path}" -i "{video_file_path}" -ac 1 -ar 16000 -vn "{output_audio_path}"'
-    os.system(command)
+    
+    print(f"Running command: {command}")  # Debugging line
+    
+    result = os.system(command)
+    
+    if result != 0:
+        raise FileNotFoundError(f"Failed to extract audio. Command: {command}")
+    
+    if not os.path.exists(output_audio_path):
+        raise FileNotFoundError(f"Audio file not found at: {output_audio_path}")
 
-# Function to transcribe audio using Vosk
+# Transcribe audio using Vosk model
 def transcribe_audio(audio_file_path):
     # Determine the correct model path
     if getattr(sys, 'frozen', False):
-        # If running as a bundled app
-        base_path = os.path.dirname(sys.executable)
-        model_path = os.path.join(base_path, "model/vosk-model-en-us-0.22")
+        base_path = os.path.dirname(sys.executable)  # In bundled app
     else:
-        # If running in a regular Python environment
-        model_path = os.path.join(os.getcwd(), "model/vosk-model-en-us-0.22")
+        base_path = os.path.dirname(__file__)  # In development
+    
+    model_path = os.path.join(base_path, "model/vosk-model-en-us-0.22")
     
     if not os.path.exists(model_path):
         raise FileNotFoundError("Vosk model directory not found. Please make sure the model is included with the application.")
@@ -79,21 +124,7 @@ def transcribe_audio(audio_file_path):
     final_transcript = " ".join(transcript)
     return final_transcript
 
-# Function to handle the full transcription process
-
-def get_resource_path(relative_path):
-    if hasattr(sys, '_MEIPASS'):
-        # For PyInstaller frozen app
-        base_path = sys._MEIPASS
-    elif getattr(sys, 'frozen', False):
-        # For cx_Freeze frozen app
-        base_path = os.path.dirname(sys.executable)
-    else:
-        # When running in a normal Python environment
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
+# File selection and transcription function
 def transcribe_file():
     try:
         select_file_button.config(state=tk.DISABLED)
@@ -101,12 +132,22 @@ def transcribe_file():
         progress_label.config(text="Starting...")
         
         file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
-        
+
         if not file_path:
             select_file_button.config(state=tk.NORMAL)
             return
         
-        temp_audio_path = get_resource_path("temp_extracted_audio.wav")
+        # Get the base path for temp files
+        if platform.system() == "Windows":
+            documents_folder = os.path.join(os.getenv('USERPROFILE'), 'Documents')
+        else:
+            documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
+        
+        temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
+        if not os.path.exists(temp_audio_folder):
+            os.makedirs(temp_audio_folder)
+        
+        temp_audio_path = os.path.join(temp_audio_folder, "temp_extracted_audio.wav")
 
         # Check if temp_extracted_audio.wav exists, and delete it if found
         if os.path.exists(temp_audio_path):
@@ -115,10 +156,6 @@ def transcribe_file():
         if file_path.endswith(".mp4"):
             extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path
-
-            # Check if the extraction succeeded
-            if not os.path.exists(temp_audio_path):
-                raise FileNotFoundError(f"Audio file not found at: {temp_audio_path}")
 
         # Transcribe the audio file
         transcript = transcribe_audio(file_path)
@@ -142,9 +179,9 @@ def transcribe_file():
     finally:
         select_file_button.config(state=tk.NORMAL)
 
-# Function to start the transcription process in a separate thread
 
 def start_transcription():
+    # Start the transcription process in a separate thread to avoid blocking the GUI
     thread = threading.Thread(target=transcribe_file)
     thread.start()
 
