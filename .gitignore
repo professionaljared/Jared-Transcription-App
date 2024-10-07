@@ -8,3 +8,5 @@ PyInstaller-Dockerfile
 jta_main_optimized.py
 /venv310
 settings.py
+.github
+setup_optimized.py
