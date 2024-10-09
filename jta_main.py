@@ -52,29 +52,32 @@ def get_ffmpeg_path():
 
     return ffmpeg_path
 
-# Example usage:
-ffmpeg_path = get_ffmpeg_path()
-print(f"FFmpeg path: {ffmpeg_path}")
 
 # Extract audio from video using ffmpeg
 def extract_audio_from_video(video_file_path, output_audio_path):
+    # Use the get_ffmpeg_path function to determine the correct path for ffmpeg
     ffmpeg_path = get_ffmpeg_path()
-    
-    # Ensure ffmpeg has executable permissions on macOS
+
+    # If not on Windows, ensure ffmpeg is executable
     if platform.system() != "Windows":
         os.chmod(ffmpeg_path, 0o755)
-    
-    command = f'"{ffmpeg_path}" -i "{video_file_path}" -ac 1 -ar 16000 -vn "{output_audio_path}"'
-    
-    print(f"Running command: {command}")  # Debugging line
-    
-    result = os.system(command)
-    
-    if result != 0:
-        raise FileNotFoundError(f"Failed to extract audio. Command: {command}")
-    
-    if not os.path.exists(output_audio_path):
-        raise FileNotFoundError(f"Audio file not found at: {output_audio_path}")
+
+    # Use list of command components to avoid shell interpretation issues
+    command = [
+        ffmpeg_path,
+        '-i', video_file_path,
+        '-ac', '1',
+        '-ar', '16000',
+        '-vn',
+        output_audio_path
+    ]
+
+    try:
+        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"FFmpeg output: {result.stdout.decode()}")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to extract audio. Command: {command}")
+        raise e
 
 # Transcribe audio using Vosk model
 def transcribe_audio(audio_file_path):

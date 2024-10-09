@@ -9,3 +9,4 @@ jta_main_optimized.py
 /venv310
 settings.py
 setup_optimized.py
+dist/*
