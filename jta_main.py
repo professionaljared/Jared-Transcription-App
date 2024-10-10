@@ -9,11 +9,12 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 import threading
 import platform
-import tempfile
-from vosk import Model, KaldiRecognizer  # Import Vosk Model and KaldiRecognizer
+from vosk import Model, KaldiRecognizer
 
+#Attributes for the version name and number
+version_name = "Parsnip"
+version_number = "1.2"
 
-# Define the documents folder and temp audio storage location
 def get_documents_folder():
     if platform.system() == "Windows":
         return os.path.join(os.environ['USERPROFILE'], 'Documents')
@@ -52,8 +53,8 @@ def get_ffmpeg_path():
 
     return ffmpeg_path
 
-
 # Extract audio from video using ffmpeg
+
 def extract_audio_from_video(video_file_path, output_audio_path):
     # Use the get_ffmpeg_path function to determine the correct path for ffmpeg
     ffmpeg_path = get_ffmpeg_path()
@@ -69,12 +70,13 @@ def extract_audio_from_video(video_file_path, output_audio_path):
         '-ac', '1',
         '-ar', '16000',
         '-vn',
+        '-preset', 'ultrafast',
         output_audio_path
     ]
 
     try:
-        result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(f"FFmpeg output: {result.stdout.decode()}")
+        subprocess.run(command, check=True)
+        print("Audio extraction completed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"Failed to extract audio. Command: {command}")
         raise e
@@ -112,7 +114,7 @@ def transcribe_audio(audio_file_path):
         root.update_idletasks()
 
     while True:
-        data = wf.readframes(32000)
+        data = wf.readframes(64000)
         if len(data) == 0:
             break
         
@@ -132,12 +134,13 @@ def transcribe_file():
     try:
         select_file_button.config(state=tk.DISABLED)
         progress_bar['value'] = 0
-        progress_label.config(text="Starting...")
+        progress_label.config(text="Selecting File...")
         
         file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
 
         if not file_path:
             select_file_button.config(state=tk.NORMAL)
+            progress_label.config(text="Awaiting File...")
             return
         
         # Get the base path for temp files
@@ -157,23 +160,17 @@ def transcribe_file():
             os.remove(temp_audio_path)
 
         if file_path.endswith(".mp4"):
-            extract_audio_from_video(file_path, temp_audio_path)
+            # Extract audio in a separate thread to improve responsiveness
+            extraction_thread = threading.Thread(target=extract_audio_from_video, args=(file_path, temp_audio_path))
+            extraction_thread.start()
+            progress_label.config(text="Starting...")
+            extraction_thread.join()
             file_path = temp_audio_path
 
-        # Transcribe the audio file
-        transcript = transcribe_audio(file_path)
-        
-        # Ask where to save the transcript file
-        save_transcript_path = filedialog.asksaveasfilename(title="Save Transcript as", defaultextension=".txt")
-        with open(save_transcript_path, "w") as f:
-            f.write(transcript)
-        
-        # Delete the temporary audio file if it was created
-        if temp_audio_path and os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
-
-        messagebox.showinfo("Success", "Transcription completed successfully!")
-        progress_label.config(text="Transcription completed!")
+        # Transcribe the audio file in a separate thread
+        transcription_thread = threading.Thread(target=transcribe_and_save, args=(file_path,))
+        transcription_thread.start()
+        transcription_thread.join()
     
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
@@ -182,15 +179,33 @@ def transcribe_file():
     finally:
         select_file_button.config(state=tk.NORMAL)
 
+# Function to handle transcription and saving
+def transcribe_and_save(file_path):
+    # Transcribe the audio file
+    transcript = transcribe_audio(file_path)
+    
+    # Ask where to save the transcript file
+    save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
+    if save_transcript_path:
+        with open(save_transcript_path, "w") as f:
+            f.write(transcript)
+    
+    # Delete the temporary audio file if it was created
+    temp_audio_path = get_temp_audio_path()
+    if temp_audio_path and os.path.exists(temp_audio_path):
+        os.remove(temp_audio_path)
+
+    messagebox.showinfo("Success", "Transcription completed successfully!")
+    progress_label.config(text="Transcription completed!")
 
 def start_transcription():
     # Start the transcription process in a separate thread to avoid blocking the GUI
     thread = threading.Thread(target=transcribe_file)
     thread.start()
-
 # Tkinter GUI setup
+
 root = tk.Tk()
-root.title("JTA - Turnip (1.1)")
+root.title(f"JTA - {version_name} ({version_number})")
 root.geometry("600x400")
 
 # Create a ttk style and set a theme
@@ -198,14 +213,14 @@ style = ttk.Style()
 style.theme_use("clam")
 
 # Configure a custom style for ttk labels
-style.configure("Custom.TLabel", background="#3aae48", foreground="black", font=("Helvetica", 12), padding=10)
+style.configure("Custom.TLabel", background="#B87013", foreground="black", font=("Helvetica", 12), padding=10)
 
 # Create a frame to organize widgets
 main_frame = ttk.Frame(root)
 main_frame.grid(row=0, column=0, sticky="nsew")
 
 # Add a ttk label
-welcome_label = ttk.Label(main_frame, text="Welcome to JTA - Turnip (1.1)", style="Custom.TLabel")
+welcome_label = ttk.Label(main_frame, text=f"Welcome to JTA - {version_name} ({version_number})", style="Custom.TLabel")
 welcome_label.grid(row=0, column=0, padx=10, pady=10)
 
 # Add a ttk button for selecting a file and transcribing
@@ -213,11 +228,11 @@ select_file_button = ttk.Button(main_frame, text="Select File and Transcribe", c
 select_file_button.grid(row=1, column=0, padx=10, pady=20)
 
 # Add a progress bar
-progress_bar = ttk.Progressbar(main_frame, orient="horizontal", length=500, mode="determinate")
+progress_bar = ttk.Progressbar(main_frame,orient="horizontal", length=500, mode="determinate")
 progress_bar.grid(row=2, column=0, padx=10, pady=10)
 
 # Add a label to show progress percentage
-progress_label = ttk.Label(main_frame, text="Progress: 0%", style="Custom.TLabel")
+progress_label = ttk.Label(main_frame, text="Awaiting File...", style="Custom.TLabel")
 progress_label.grid(row=3, column=0, padx=10, pady=5)
 
 # Ensure the window expands correctly
@@ -227,4 +242,6 @@ main_frame.grid_rowconfigure(0, weight=1)
 main_frame.grid_columnconfigure(0, weight=1)
 
 # Start the Tkinter loop
-root.mainloop()
+if __name__ == "__main__":
+    # Start the Tkinter loop
+    root.mainloop()

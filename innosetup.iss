@@ -4,11 +4,11 @@
 [Setup]
 ; General settings
 AppName=Jared Transcription App
-AppVersion=1.1
-DefaultDirName={pf}\JTA - Turnip
-DefaultGroupName=JTA - Turnip
+AppVersion=1.2
+DefaultDirName={pf}\JTA - Parsnip
+DefaultGroupName=JTA - Parsnip
 OutputDir="C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\dist"
-OutputBaseFilename=JTA_Turnip_Installer
+OutputBaseFilename=JTA_Parsnip_Installer
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64  
@@ -28,12 +28,10 @@ Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\b
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\python310.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
 
+Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\icons\jta_logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Create shortcut in the Start Menu
-Name: "{group}\JTA - Turnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"
+Name: "{group}\JTA - Parsnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"
 ; Create shortcut on Desktop
-Name: "{commondesktop}\JTA - Turnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"
-
-
-
+Name: "{commondesktop}\JTA - Parsnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"

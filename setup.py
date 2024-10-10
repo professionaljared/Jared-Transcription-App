@@ -1,5 +1,6 @@
 import os
 import platform
+from jta_main import version_name, version_number
 from cx_Freeze import setup, Executable
 
 # Paths for different platforms
@@ -12,6 +13,11 @@ else:
 
 # Add the model folder (common for both platforms)
 model_folder = "model"
+
+# Set base based on the platform
+base = None
+if platform.system() == "Windows":
+    base = "Win32GUI"
 
 # Build options for macOS and Windows
 build_exe_options = {
@@ -26,9 +32,9 @@ build_exe_options = {
 
 # Setup
 setup(
-    name="JTA - Turnip",
-    version="1.1",
+    name=f"JTA - {version_name}",
+    version=f"{version_number}",
     description="Jared Transcription App",
     options={"build_exe": build_exe_options},
-    executables=[Executable("jta_main.py", target_name="jta_main.exe" if platform.system() == "Windows" else "jta_main")]
+    executables=[Executable("jta_main.py", base=base, target_name="jta_main.exe" if platform.system() == "Windows" else "jta_main")]
 )

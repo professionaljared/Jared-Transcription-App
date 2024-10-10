@@ -10,3 +10,4 @@ jta_main_optimized.py
 settings.py
 setup_optimized.py
 dist/*
+__pycache__
