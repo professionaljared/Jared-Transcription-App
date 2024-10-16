@@ -9,11 +9,9 @@ from tkinter import filedialog, messagebox
 from tkinter import ttk
 import threading
 import concurrent.futures
+from jta_ui import initialize_ui # UI import
 from vosk import Model, KaldiRecognizer
 
-# Attributes for the version name and number
-version_name = "Ginger"
-version_number = "1.3"
 
 def get_documents_folder():
     return os.path.join(os.environ['USERPROFILE'], 'Documents')
@@ -189,43 +187,26 @@ def start_transcription():
     thread.start()
 
 #  Tkinter GUI setup
+def open_settings_window():
+    # Create a new settings window
+    settings_window = tk.Toplevel(root)
+    settings_window.title("Settings")
+    settings_window.geometry("300x200")
+    
+    # Add settings options (you can add more settings here)
+    label = ttk.Label(settings_window, text="Settings Page", font=("Helvetica", 14))
+    label.pack(pady=20)
 
-root = tk.Tk()
-root.title(f"JTA - {version_name} ({version_number})")
-root.geometry("600x400")
+    close_button = ttk.Button(settings_window, text="Close", command=settings_window.destroy)
+    close_button.pack(pady=10)
 
-# Create a ttk style and set a theme
-style = ttk.Style()
-style.theme_use("clam")
 
-# Configure a custom style for ttk labels
-style.configure("Custom.TLabel", background="#E9A365", foreground="black", font=("Helvetica", 12), padding=10)
+# Initialize the UI
+root, select_file_button, progress_bar, progress_label = initialize_ui(
+    transcribe_file_command=lambda: threading.Thread(target=transcribe_file).start(),
+    settings_command=open_settings_window
+)
 
-# Create a frame to organize widgets
-main_frame = ttk.Frame(root)
-main_frame.grid(row=0, column=0, sticky="nsew")
-
-# Add a ttk label
-welcome_label = ttk.Label(main_frame, text=f"Welcome to JTA - {version_name} ({version_number})", style="Custom.TLabel")
-welcome_label.grid(row=0, column=0, padx=10, pady=10)
-
-# Add a ttk button for selecting a file and transcribing
-select_file_button = ttk.Button(main_frame, text="Select File and Transcribe", command=start_transcription)
-select_file_button.grid(row=1, column=0, padx=10, pady=20)
-
-# Add a progress bar
-progress_bar = ttk.Progressbar(main_frame,orient="horizontal", length=500, mode="determinate")
-progress_bar.grid(row=2, column=0, padx=10, pady=10)
-
-# Add a label to show progress percentage
-progress_label = ttk.Label(main_frame, text="Awaiting File...", style="Custom.TLabel")
-progress_label.grid(row=3, column=0, padx=10, pady=5)
-# Ensure the window expands correctly
-root.grid_rowconfigure(0, weight=1)
-root.grid_columnconfigure(0, weight=1)
-main_frame.grid_rowconfigure(0, weight=1)
-main_frame.grid_columnconfigure(0, weight=1)
-
+# Start the Tkinter loop
 if __name__ == "__main__":
-    # Start the Tkinter loop
     root.mainloop()
