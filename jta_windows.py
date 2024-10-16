@@ -12,8 +12,8 @@ import concurrent.futures
 from vosk import Model, KaldiRecognizer
 
 # Attributes for the version name and number
-version_name = "Parsnip"
-version_number = "1.2"
+version_name = "Ginger"
+version_number = "1.3"
 
 def get_documents_folder():
     return os.path.join(os.environ['USERPROFILE'], 'Documents')
@@ -199,7 +199,7 @@ style = ttk.Style()
 style.theme_use("clam")
 
 # Configure a custom style for ttk labels
-style.configure("Custom.TLabel", background="#B87013", foreground="black", font=("Helvetica", 12), padding=10)
+style.configure("Custom.TLabel", background="#E9A365", foreground="black", font=("Helvetica", 12), padding=10)
 
 # Create a frame to organize widgets
 main_frame = ttk.Frame(root)

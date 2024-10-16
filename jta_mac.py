@@ -12,14 +12,11 @@ import platform
 from vosk import Model, KaldiRecognizer
 
 #Attributes for the version name and number
-version_name = "Parsnip"
-version_number = "1.2"
+version_name = "Ginger"
+version_number = "1.3"
 
 def get_documents_folder():
-    if platform.system() == "Windows":
-        return os.path.join(os.environ['USERPROFILE'], 'Documents')
-    else:
-        return os.path.join(os.environ['HOME'], 'Documents')
+    return os.path.join(os.environ['HOME'], 'Documents')
 
 def get_temp_audio_path():
     documents_folder = get_documents_folder()
@@ -27,29 +24,20 @@ def get_temp_audio_path():
     os.makedirs(temp_audio_folder, exist_ok=True)
     return os.path.join(temp_audio_folder, "temp_extracted_audio.wav")
 
-# Get the ffmpeg path depending on OS
+# Get the ffmpeg path
+
 def get_ffmpeg_path():
     """
-    Determine the correct path for the ffmpeg binary based on the platform and whether the app is frozen (cx_Freeze).
+    Determine the correct path for the ffmpeg binary based on whether the app is frozen (cx_Freeze).
     """
     # Check if the application is frozen (packaged by cx_Freeze)
     if getattr(sys, 'frozen', False):
         # If frozen, adjust the ffmpeg path based on the app's executable location
         base_path = os.path.dirname(sys.executable)
-        if platform.system() == "Darwin":  # macOS
-            ffmpeg_path = os.path.join(base_path, "ffmpeg", "macos", "ffmpeg")
-        elif platform.system() == "Windows":
-            ffmpeg_path = os.path.join(base_path, "ffmpeg", "windows", "ffmpeg.exe")
-        else:
-            raise OSError("Unsupported platform for frozen build.")
+        ffmpeg_path = os.path.join(base_path, "ffmpeg", "macos", "ffmpeg")
     else:
         # If not frozen, use the current working directory (development environment)
-        if platform.system() == "Darwin":  # macOS
-            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
-        elif platform.system() == "Windows":
-            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
-        else:
-            raise OSError("Unsupported platform for development environment.")
+        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
 
     return ffmpeg_path
 
@@ -60,9 +48,8 @@ def extract_audio_from_video(video_file_path, output_audio_path):
     ffmpeg_path = get_ffmpeg_path()
     progress_label.config(text="Extracting Audio...")
 
-    # If not on Windows, ensure ffmpeg is executable
-    if platform.system() != "Windows":
-        os.chmod(ffmpeg_path, 0o755)
+    # Ensure ffmpeg is executable
+    os.chmod(ffmpeg_path, 0o755)
 
     # Use list of command components to avoid shell interpretation issues
     command = [
@@ -144,10 +131,7 @@ def transcribe_file():
             return
         
         # Get the base path for temp files
-        if platform.system() == "Windows":
-            documents_folder = os.path.join(os.getenv('USERPROFILE'), 'Documents')
-        else:
-            documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
+        documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
         
         temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
         if not os.path.exists(temp_audio_folder):
@@ -213,7 +197,7 @@ style = ttk.Style()
 style.theme_use("clam")
 
 # Configure a custom style for ttk labels
-style.configure("Custom.TLabel", background="#B87013", foreground="black", font=("Helvetica", 12), padding=10)
+style.configure("Custom.TLabel", background="#E9A365", foreground="black", font=("Helvetica", 12), padding=10)
 
 # Create a frame to organize widgets
 main_frame = ttk.Frame(root)
