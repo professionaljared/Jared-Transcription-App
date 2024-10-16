@@ -8,18 +8,15 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 import threading
-import platform
+import concurrent.futures
 from vosk import Model, KaldiRecognizer
 
-#Attributes for the version name and number
+# Attributes for the version name and number
 version_name = "Parsnip"
 version_number = "1.2"
 
 def get_documents_folder():
-    if platform.system() == "Windows":
-        return os.path.join(os.environ['USERPROFILE'], 'Documents')
-    else:
-        return os.path.join(os.environ['HOME'], 'Documents')
+    return os.path.join(os.environ['USERPROFILE'], 'Documents')
 
 def get_temp_audio_path():
     documents_folder = get_documents_folder()
@@ -27,41 +24,24 @@ def get_temp_audio_path():
     os.makedirs(temp_audio_folder, exist_ok=True)
     return os.path.join(temp_audio_folder, "temp_extracted_audio.wav")
 
-# Get the ffmpeg path depending on OS
+# Get the ffmpeg path
 def get_ffmpeg_path():
-    """
-    Determine the correct path for the ffmpeg binary based on the platform and whether the app is frozen (cx_Freeze).
-    """
     # Check if the application is frozen (packaged by cx_Freeze)
     if getattr(sys, 'frozen', False):
         # If frozen, adjust the ffmpeg path based on the app's executable location
         base_path = os.path.dirname(sys.executable)
-        if platform.system() == "Darwin":  # macOS
-            ffmpeg_path = os.path.join(base_path, "ffmpeg", "macos", "ffmpeg")
-        elif platform.system() == "Windows":
-            ffmpeg_path = os.path.join(base_path, "ffmpeg", "windows", "ffmpeg.exe")
-        else:
-            raise OSError("Unsupported platform for frozen build.")
+        ffmpeg_path = os.path.join(base_path, "ffmpeg", "windows", "ffmpeg.exe")
     else:
         # If not frozen, use the current working directory (development environment)
-        if platform.system() == "Darwin":  # macOS
-            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
-        elif platform.system() == "Windows":
-            ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
-        else:
-            raise OSError("Unsupported platform for development environment.")
+        ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
 
     return ffmpeg_path
 
 # Extract audio from video using ffmpeg
-
 def extract_audio_from_video(video_file_path, output_audio_path):
     # Use the get_ffmpeg_path function to determine the correct path for ffmpeg
     ffmpeg_path = get_ffmpeg_path()
-
-    # If not on Windows, ensure ffmpeg is executable
-    if platform.system() != "Windows":
-        os.chmod(ffmpeg_path, 0o755)
+    progress_label.config(text="Extracting Audio...")
 
     # Use list of command components to avoid shell interpretation issues
     command = [
@@ -81,7 +61,25 @@ def extract_audio_from_video(video_file_path, output_audio_path):
         print(f"Failed to extract audio. Command: {command}")
         raise e
 
-# Transcribe audio using Vosk model
+# Transcribe a chunk of audio using Vosk model
+def transcribe_audio_chunk(model, chunk_data, framerate, chunk_index):
+    rec = KaldiRecognizer(model, framerate)
+    rec.SetWords(True)
+    transcript = []
+
+    if rec.AcceptWaveform(chunk_data):
+        result = rec.Result()
+        text = json.loads(result)['text']
+        transcript.append((chunk_index, text))
+    else:
+        partial_result = rec.PartialResult()
+        text = json.loads(partial_result).get('partial', '')
+        if text:
+            transcript.append((chunk_index, text))
+
+    return transcript
+
+# Split audio into chunks and transcribe using multiple threads
 def transcribe_audio(audio_file_path):
     # Determine the correct model path
     if getattr(sys, 'frozen', False):
@@ -99,34 +97,34 @@ def transcribe_audio(audio_file_path):
     if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
         raise ValueError("Audio file must be WAV format mono PCM.")
     
-    rec = KaldiRecognizer(model, wf.getframerate())
-    rec.SetWords(True)
-    transcript = []
-    
     total_frames = wf.getnframes()
-    processed_frames = 0
+    chunk_size = 16000 * 60  # 60 seconds per chunk
+    chunks = []
 
-    # Function to update the progress bar
-    def update_progress():
-        progress = (processed_frames / total_frames) * 100
-        progress_bar['value'] = progress
-        progress_label.config(text=f"Processing: {int(progress)}%")
-        root.update_idletasks()
-
+    # Read the audio file in chunks
+    chunk_index = 0
     while True:
-        data = wf.readframes(64000)
+        data = wf.readframes(chunk_size)
         if len(data) == 0:
             break
-        
-        processed_frames += len(data) // wf.getsampwidth()
-        root.after(0, update_progress)  # Schedule the GUI update
-        
-        if rec.AcceptWaveform(data):
-            result = rec.Result()
-            text = json.loads(result)['text']
-            transcript.append(text)
+        chunks.append((chunk_index, data))
+        chunk_index += 1
     
-    final_transcript = " ".join(transcript)
+    # Transcribe chunks using ThreadPoolExecutor
+    transcript = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = [executor.submit(transcribe_audio_chunk, model, chunk[1], wf.getframerate(), chunk[0]) for chunk in chunks]
+        
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            transcript.extend(future.result())
+            progress = ((i + 1) / len(futures)) * 100
+            progress_bar['value'] = progress
+            progress_label.config(text=f"Processing: {int(progress)}%")
+            root.update_idletasks()
+    
+    # Sort transcript by chunk index to ensure correct order
+    transcript.sort(key=lambda x: x[0])
+    final_transcript = " ".join([text for _, text in transcript])
     return final_transcript
 
 # File selection and transcription function
@@ -144,10 +142,7 @@ def transcribe_file():
             return
         
         # Get the base path for temp files
-        if platform.system() == "Windows":
-            documents_folder = os.path.join(os.getenv('USERPROFILE'), 'Documents')
-        else:
-            documents_folder = os.path.join(os.path.expanduser('~'), 'Documents')
+        documents_folder = os.path.join(os.getenv('USERPROFILE'), 'Documents')
         
         temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
         if not os.path.exists(temp_audio_folder):
@@ -160,17 +155,26 @@ def transcribe_file():
             os.remove(temp_audio_path)
 
         if file_path.endswith(".mp4"):
-            # Extract audio in a separate thread to improve responsiveness
-            extraction_thread = threading.Thread(target=extract_audio_from_video, args=(file_path, temp_audio_path))
-            extraction_thread.start()
-            progress_label.config(text="Starting...")
-            extraction_thread.join()
+            # Extract audio
+            extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path
 
-        # Transcribe the audio file in a separate thread
-        transcription_thread = threading.Thread(target=transcribe_and_save, args=(file_path,))
-        transcription_thread.start()
-        transcription_thread.join()
+        # Transcribe the audio file
+        transcript = transcribe_audio(file_path)
+
+        # Ask where to save the transcript file
+        save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
+        if save_transcript_path:
+            with open(save_transcript_path, "w") as f:
+                f.write(transcript)
+        
+        # Delete the temporary audio file if it was created
+        temp_audio_path = get_temp_audio_path()
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
+        messagebox.showinfo("Success", "Transcription completed successfully!")
+        progress_label.config(text="Transcription completed!")
     
     except Exception as e:
         messagebox.showerror("Error", f"An error occurred: {e}")
@@ -179,30 +183,12 @@ def transcribe_file():
     finally:
         select_file_button.config(state=tk.NORMAL)
 
-# Function to handle transcription and saving
-def transcribe_and_save(file_path):
-    # Transcribe the audio file
-    transcript = transcribe_audio(file_path)
-    
-    # Ask where to save the transcript file
-    save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
-    if save_transcript_path:
-        with open(save_transcript_path, "w") as f:
-            f.write(transcript)
-    
-    # Delete the temporary audio file if it was created
-    temp_audio_path = get_temp_audio_path()
-    if temp_audio_path and os.path.exists(temp_audio_path):
-        os.remove(temp_audio_path)
-
-    messagebox.showinfo("Success", "Transcription completed successfully!")
-    progress_label.config(text="Transcription completed!")
-
 def start_transcription():
     # Start the transcription process in a separate thread to avoid blocking the GUI
     thread = threading.Thread(target=transcribe_file)
     thread.start()
-# Tkinter GUI setup
+
+#  Tkinter GUI setup
 
 root = tk.Tk()
 root.title(f"JTA - {version_name} ({version_number})")
@@ -234,14 +220,12 @@ progress_bar.grid(row=2, column=0, padx=10, pady=10)
 # Add a label to show progress percentage
 progress_label = ttk.Label(main_frame, text="Awaiting File...", style="Custom.TLabel")
 progress_label.grid(row=3, column=0, padx=10, pady=5)
-
 # Ensure the window expands correctly
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 main_frame.grid_rowconfigure(0, weight=1)
 main_frame.grid_columnconfigure(0, weight=1)
 
-# Start the Tkinter loop
 if __name__ == "__main__":
     # Start the Tkinter loop
     root.mainloop()

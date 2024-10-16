@@ -17,7 +17,7 @@ DisableProgramGroupPage=yes
 
 [Files]
 ; Include all required files for the application
-Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\jta_main.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\jta_windows.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\model\*" ; DestDir: "{app}\model"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\vosk\*" ; DestDir: "{app}\vosk"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -32,6 +32,6 @@ Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\i
 
 [Icons]
 ; Create shortcut in the Start Menu
-Name: "{group}\JTA - Parsnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"
+Name: "{group}\JTA - Parsnip"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
 ; Create shortcut on Desktop
-Name: "{commondesktop}\JTA - Parsnip"; Filename: "{app}\jta_main.exe"; IconFilename: "{app}\jta_logo.ico"
+Name: "{commondesktop}\JTA - Parsnip"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
