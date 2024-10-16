@@ -1,4 +1,6 @@
 import tkinter as tk
+import os
+import sys
 from tkinter import ttk
 from PIL import Image, ImageTk  # Import Pillow
 
@@ -8,6 +10,11 @@ version_number = "1.3"
 label_background_color = "#E9A365"
 
 def initialize_ui(transcribe_file_command, settings_command):
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)  # In bundled app
+    else:
+        base_path = os.path.dirname(__file__) 
+
     root = tk.Tk()
     root.title(f"JTA - {version_name} ({version_number})")
     root.geometry("600x400")
@@ -40,11 +47,19 @@ def initialize_ui(transcribe_file_command, settings_command):
     progress_label.grid(row=3, column=0, padx=10, pady=5)
 
     # Resize gear icon using PIL
-    gear_icon_path = "icons/gear_icon.png"  # Make sure to provide the correct path to your gear icon image
+    # Check if the application is frozen (packaged by cx_Freeze)
+    if getattr(sys, 'frozen', False):
+        # If frozen, adjust the ffmpeg path based on the app's executable location
+        base_path = os.path.dirname(sys.executable)
+        gear_icon_path = os.path.join(base_path, "icons", "gear_icon.png")
+    else:
+        # If not frozen, use the current working directory (development environment)
+        gear_icon_path = os.path.join(os.getcwd(), "icons", "gear_icon.png")
+    
     gear_image = Image.open(gear_icon_path)
 
-    # Resize the image (e.g., 24x24 pixels) using LANCZOS instead of ANTIALIAS
-    gear_image_resized = gear_image.resize((24, 24), Image.LANCZOS)
+    # Resize the image 
+    gear_image_resized = gear_image.resize((30, 30), Image.LANCZOS)
 
     # Convert the resized image to PhotoImage
     gear_icon = ImageTk.PhotoImage(gear_image_resized)

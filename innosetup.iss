@@ -18,11 +18,17 @@ DisableProgramGroupPage=yes
 [Files]
 ; Include all required files for the application
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\jta_windows.exe"; DestDir: "{app}"; Flags: ignoreversion
+
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\model\*" ; DestDir: "{app}\model"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\vosk\*" ; DestDir: "{app}\vosk"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\frozen_application_license.txt"; DestDir: "{app}"; Flags: ignoreversion
+
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\lib\*"; DestDir: "{app}\lib"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\share\*"; DestDir: "{app}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\icons\*"; DestDir: "{app}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\python3.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\build\exe.win-amd64-3.10\python310.dll"; DestDir: "{app}"; Flags: ignoreversion

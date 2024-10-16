@@ -1,6 +1,6 @@
 import os
 import platform
-from jta_mac import version_name, version_number
+from jta_ui import version_name, version_number
 from cx_Freeze import setup, Executable
 
 # Paths for different platforms
@@ -15,6 +15,7 @@ else:
 
 # Add the model folder (common for both platforms)
 model_folder = "model"
+icon_folder = "icons"
 
 # Set base based on the platform
 base = None
@@ -23,11 +24,12 @@ if platform.system() == "Windows":
 
 # Build options for macOS and Windows
 build_exe_options = {
-    "packages": ["os", "wave", "json", "subprocess", "tkinter", "threading", "tempfile", "platform"],
+    "packages": ["os", "wave", "json", "subprocess", "tkinter", "threading", "tempfile", "platform", "PIL"],
     "include_files": [
         (ffmpeg_bin, "ffmpeg/windows/" if platform.system() == "Windows" else "ffmpeg/macos/ffmpeg"),        
         (vosk_lib, "vosk"),  # Include Vosk library based on the platform
-        (model_folder, "model")
+        (model_folder, "model"),
+        (icon_folder, "icons")
     ],
     "optimize": 2
 }
