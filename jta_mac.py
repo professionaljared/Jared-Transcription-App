@@ -120,7 +120,7 @@ def transcribe_and_save(file_path):
 
 def transcribe_audio_and_save_thread(file_path):
     try:
-        progress_label.configure(text="Transcribing audio, please wait...")
+        progress_label.configure(text="Starting transcription, please wait...")
         transcript = transcribe_audio(file_path)
 
         save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
@@ -167,14 +167,8 @@ def transcribe_file():
         progress_label.configure(text="An error occurred.")
         messagebox.showerror("Error", f"An error occurred: {e}")
 
-def open_settings_window():
-    settings_window = tk.Toplevel(root)
-    settings_window.title("Settings")
-    settings_window.geometry("300x200")
-
 root, select_file_button, progress_bar, progress_label = initialize_ui(
     transcribe_file_command=lambda: threading.Thread(target=transcribe_file).start(),
-    settings_command=open_settings_window
 )
 
 if __name__ == "__main__":
