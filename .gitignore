@@ -9,5 +9,7 @@ settings.py
 setup_optimized.py
 dist/*
 __pycache__
-whisper-test-2.py
+
 whisper-test.py
+whisper-test-2.py
+whisper-test-3.py

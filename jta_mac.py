@@ -1,14 +1,17 @@
 import os
-import wave
-import json
-import shutil
+import sys
 import subprocess
 import sys
-import tkinter as tk
+import ssl
+import whisper
+import tqdm
 import threading
+import tkinter as tk
 from tkinter import filedialog, messagebox
-from vosk import Model, KaldiRecognizer
-from jta_ui import initialize_ui # UI Import
+from jta_ui import initialize_ui, accent_color, dark_accent_color # UI Import
+
+# token bypass
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def get_documents_folder():
     return os.path.join(os.environ['HOME'], 'Documents')
@@ -27,15 +30,15 @@ def get_ffmpeg_path():
         ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "macos", "ffmpeg")
     return ffmpeg_path
 
-def extract_audio_from_video(video_file_path, output_audio_path, extraction_done_callback):
+def extract_audio_from_video(video_file_path, output_audio_path):
     ffmpeg_path = get_ffmpeg_path()
     progress_label.configure(text="Processing Audio...")
-    progress_bar.set(0)
     progress_bar.configure(mode='indeterminate')
-    progress_bar.start()  # Start the indeterminate progress animation
+    progress_bar.start()  
 
     os.chmod(ffmpeg_path, 0o755)
 
+    # This will be proccessed again via Whisper, do not break down the quality too much
     command = [
         ffmpeg_path,
         '-i', video_file_path,
@@ -46,126 +49,109 @@ def extract_audio_from_video(video_file_path, output_audio_path, extraction_done
         output_audio_path
     ]
 
-    def run_ffmpeg():
-        try:
-            subprocess.run(command, check=True)
-            progress_label.configure(text="Audio extraction completed successfully.")
-            print("Audio extraction completed successfully.")
-            progress_bar.stop()  # Stop the indeterminate progress bar
-            progress_bar.configure(mode='determinate')
-            progress_bar.set(1.0)  # Set progress bar to 100% after completion
-            extraction_done_callback(output_audio_path)
-        except subprocess.CalledProcessError as e:
-            progress_label.configure(text="Failed to extract audio.")
-            print(f"Failed to extract audio. Command: {command}")
-        except Exception as e:
-            progress_label.configure(text="An error occurred during extraction.")
-            print(f"Error during extraction: {e}")
-        finally:
-            progress_bar.stop()
-            progress_bar.configure(mode='determinate')
+    try:
+        subprocess.run(command, check=True)
+        progress_label.configure(text="Audio extraction completed successfully.")
+        print("Audio extraction completed successfully.")
+        progress_bar.stop()  
+        progress_bar.configure(mode='determinate')
+        progress_bar.set(1.0)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to extract audio. Command: {command}")
+        raise e
 
-    threading.Thread(target=run_ffmpeg).start()
-
-# File selection and transcription function
-def transcribe_audio(audio_file_path):
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(__file__)
-    
-    model_path = os.path.join(base_path, "model/vosk-model-en-us-0.22")
-
-    if not os.path.exists(model_path):
-        raise FileNotFoundError("Vosk model directory not found. Please make sure the model is included with the application.")
-
-    model = Model(model_path)
-    wf = wave.open(audio_file_path, "rb")
-    if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
-        raise ValueError("Audio file must be WAV format mono PCM.")
-    
-    rec = KaldiRecognizer(model, wf.getframerate())
-    rec.SetWords(True)
-    transcript = []
-    total_frames = wf.getnframes()
-    processed_frames = 0
-
-    def update_progress():
-        progress = (processed_frames / total_frames) * 100
-        progress_bar.set(progress / 100)
-        progress_label.configure(text=f"Transcribing: {int(progress)}%")
+# Monkey-patch tqdm to capture progress
+class TqdmPatch(tqdm.std.tqdm):
+    def update(self, n=1):
+        super().update(n)
+        progress = self.n / float(self.total) if self.total else 0
+        progress_bar.set(progress)
+        progress_label.configure(text=f"Transcribing... {int(progress * 100)}%")
         root.update_idletasks()
 
-    while True:
-        data = wf.readframes(64000)
-        if len(data) == 0:
-            break
-        
-        processed_frames += len(data) // wf.getsampwidth()
-        if int((processed_frames / total_frames) * 100) > int(((processed_frames - len(data)) / total_frames) * 100):
-            root.after(0, update_progress)  # Update progress for each 1%
+# Transcribe audio using Whisper
+def transcribe_audio(audio_file_path):
+    model = whisper.load_model("base")  # "tiny", "small", "medium", "large"; default is base
+    print("Transcribing, please wait...")
+    if not os.path.exists(audio_file_path):
+        raise FileNotFoundError(f"The file {audio_file_path} was not found.")
 
-        if rec.AcceptWaveform(data):
-            result = rec.Result()
-            text = json.loads(result)['text']
-            transcript.append(text)
-    
-    final_transcript = " ".join(transcript)
-    return final_transcript
+    progress_label.configure(text="Transcribing Audio...")
+    progress_bar.configure(mode='determinate')
 
-def transcribe_and_save(file_path):
-    # Start the transcription in a new thread to keep UI responsive
-    transcription_thread = threading.Thread(target=transcribe_audio_and_save_thread, args=(file_path,))
-    transcription_thread.start()
+    # Monkey-patch tqdm to update the progress bar
+    original_tqdm = tqdm.tqdm
+    tqdm.tqdm = TqdmPatch
 
-def transcribe_audio_and_save_thread(file_path):
     try:
-        progress_label.configure(text="Starting transcription, please wait...")
+        result = model.transcribe(audio_file_path, verbose=False)
+        transcript = result['text']
+    finally:
+        # Restore the original tqdm
+        tqdm.tqdm = original_tqdm
+
+    return transcript
+
+# File selection and transcription function
+def transcribe_file():
+    try:
+        select_file_button.configure(state="disabled")
+        progress_bar.set(0)
+        progress_label.configure(text="Selecting File...")
+
+        file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
+
+        if not file_path:
+            select_file_button.configure(state="normal")
+            progress_label.configure(text="Awaiting File...")
+            return
+
+        documents_folder = os.path.join(os.getenv('USERPROFILE', os.getenv('HOME')), 'Documents')
+        temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
+        if not os.path.exists(temp_audio_folder):
+            os.makedirs(temp_audio_folder)
+
+        temp_audio_path = os.path.join(temp_audio_folder, "temp_extracted_audio.wav")
+
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
+        if file_path.endswith(".mp4"):
+            extract_audio_from_video(file_path, temp_audio_path)
+            file_path = temp_audio_path
+
+        # Temporarily update system PATH to prioritize custom ffmpeg
+        original_path = os.environ.get("PATH", "")
+        ffmpeg_dir = os.path.dirname(get_ffmpeg_path())
+        os.environ["PATH"] = f"{ffmpeg_dir}{os.pathsep}{original_path}"
+
         transcript = transcribe_audio(file_path)
+
+        # Restore the original PATH
+        os.environ["PATH"] = original_path
 
         save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
         if save_transcript_path:
             with open(save_transcript_path, "w") as f:
                 f.write(transcript)
 
-        progress_label.configure(text="Transcription completed successfully.")
+        temp_audio_path = get_temp_audio_path()
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+
         messagebox.showinfo("Success", "Transcription completed successfully!")
-        select_file_button.configure(state=tk.NORMAL, fg_color="#E9A365")
-        temp_audio_path = get_temp_audio_path()
-        if os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
+        progress_label.configure(text="Transcription completed!")
 
     except Exception as e:
-        progress_label.configure(text="An error occurred during transcription.")
-        messagebox.showerror("Error", f"An error occurred during transcription: {e}")
-
-def transcribe_file():
-    try:
-        select_file_button.configure(state=tk.DISABLED, fg_color="#9c6d43")
-        progress_bar.set(0)
-
-        file_path = filedialog.askopenfilename(title="Select an audio or video file", filetypes=[("Audio/Video Files", "*.wav *.mp4")])
-        progress_label.configure(text="Selecting File...")
-        if not file_path:
-            select_file_button.configure(state=tk.NORMAL, fg_color="#E9A365")
-            progress_label.configure(text="Awaiting File...")
-            return
-
-        temp_audio_path = get_temp_audio_path()
-
-        if os.path.exists(temp_audio_path):
-            os.remove(temp_audio_path)
-
-        if file_path.endswith(".mp4"):
-            # Extract audio from video and then transcribe
-            extract_audio_from_video(file_path, temp_audio_path, extraction_done_callback=transcribe_and_save)
-        else:
-            # Transcribe directly if it's an audio file
-            transcribe_and_save(file_path)
-
-    except Exception as e:
-        progress_label.configure(text="An error occurred.")
         messagebox.showerror("Error", f"An error occurred: {e}")
+        progress_label.configure(text="An error occurred.")
+
+    finally:
+        select_file_button.configure(state="normal")
+
+def start_transcription():
+    thread = threading.Thread(target=transcribe_file)
+    thread.start()
 
 root, select_file_button, progress_bar, progress_label = initialize_ui(
     transcribe_file_command=lambda: threading.Thread(target=transcribe_file).start(),

@@ -1,17 +1,19 @@
 import os
-import wave
-import json
-import shutil
+import sys
 import subprocess
 import sys
-from tkinter import filedialog, messagebox  # Using filedialog and messagebox from tkinter for simplicity
+import ssl
+import whisper
+import tqdm
 import threading
-import concurrent.futures
-from vosk import Model, KaldiRecognizer
+import tkinter as tk
+from tkinter import filedialog, messagebox  # Using filedialog and messagebox from tkinter for simplicity
 from jta_ui import initialize_ui  # UI Import
 
+ssl._create_default_https_context = ssl._create_unverified_context
+
 def get_documents_folder():
-    return os.path.join(os.environ['USERPROFILE'], 'Documents')
+    return os.path.join(os.environ.get('USERPROFILE', os.environ.get('HOME')), 'Documents')
 
 def get_temp_audio_path():
     documents_folder = get_documents_folder()
@@ -26,16 +28,16 @@ def get_ffmpeg_path():
         ffmpeg_path = os.path.join(base_path, "ffmpeg", "windows", "ffmpeg.exe")
     else:
         ffmpeg_path = os.path.join(os.getcwd(), "ffmpeg", "windows", "ffmpeg.exe")
-
     return ffmpeg_path
 
 # Extract audio from video using ffmpeg
 def extract_audio_from_video(video_file_path, output_audio_path):
     ffmpeg_path = get_ffmpeg_path()
-    progress_label.configure(text="Processing Audio...")
+    progress_label.configure(text="Extracting Audio...")
     progress_bar.configure(mode='indeterminate')
     progress_bar.start()
 
+    # Use list of command components to avoid shell interpretation issues
     command = [
         ffmpeg_path,
         '-i', video_file_path,
@@ -47,7 +49,7 @@ def extract_audio_from_video(video_file_path, output_audio_path):
     ]
 
     try:
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, shell=True)
         progress_label.configure(text="Audio extraction completed successfully.")
         print("Audio extraction completed successfully.")
         progress_bar.stop()  # Stop the indeterminate progress bar
@@ -57,69 +59,39 @@ def extract_audio_from_video(video_file_path, output_audio_path):
         print(f"Failed to extract audio. Command: {command}")
         raise e
 
-# Transcribe a chunk of audio using Vosk model
-def transcribe_audio_chunk(model, chunk_data, framerate, chunk_index):
-    rec = KaldiRecognizer(model, framerate)
-    rec.SetWords(True)
-    transcript = []
+# Monkey-patch tqdm to capture progress
+class TqdmPatch(tqdm.std.tqdm):
+    def update(self, n=1):
+        super().update(n)
+        progress = self.n / float(self.total) if self.total else 0
+        progress_bar.set(progress)
+        progress_label.configure(text=f"Transcribing... {int(progress * 100)}%")
+        root.update_idletasks()
 
-    if rec.AcceptWaveform(chunk_data):
-        result = rec.Result()
-        text = json.loads(result)['text']
-        transcript.append((chunk_index, text))
-    else:
-        partial_result = rec.PartialResult()
-        text = json.loads(partial_result).get('partial', '')
-        if text:
-            transcript.append((chunk_index, text))
+# Transcribe audio using Whisper
+def transcribe_audio(audio_file_path):
+    model = whisper.load_model("base")  # You can use other models like "tiny", "small", "medium", "large"
+    print("Transcribing, please wait...")
+    if not os.path.exists(audio_file_path):
+        raise FileNotFoundError(f"The file {audio_file_path} was not found.")
+
+    # Track transcription progress
+    progress_label.configure(text="Transcribing Audio...")
+    progress_bar.configure(mode='determinate')
+
+    # Monkey-patch tqdm to update the progress bar
+    original_tqdm = tqdm.tqdm
+    tqdm.tqdm = TqdmPatch
+
+    try:
+        # Transcribe and update progress
+        result = model.transcribe(audio_file_path, verbose=False)
+        transcript = result['text']
+    finally:
+        # Restore the original tqdm
+        tqdm.tqdm = original_tqdm
 
     return transcript
-
-# Split audio into chunks and transcribe using multiple threads
-def transcribe_audio(audio_file_path):
-    progress_label.configure(text="Starting transcription, please wait...")
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(__file__)
-
-    model_path = os.path.join(base_path, "model/vosk-model-en-us-0.22")
-
-    if not os.path.exists(model_path):
-        raise FileNotFoundError("Vosk model directory not found. Please make sure the model is included with the application.")
-
-    model = Model(model_path)
-    wf = wave.open(audio_file_path, "rb")
-    if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
-        raise ValueError("Audio file must be WAV format mono PCM.")
-
-    total_frames = wf.getnframes()
-    chunk_size = 16000 * 45  # 60 seconds per chunk
-    chunks = []
-
-    chunk_index = 0
-    while True:
-        data = wf.readframes(chunk_size)
-        if len(data) == 0:
-            break
-        chunks.append((chunk_index, data))
-        chunk_index += 1
-
-    # Transcribe chunks using ThreadPoolExecutor
-    transcript = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(transcribe_audio_chunk, model, chunk[1], wf.getframerate(), chunk[0]) for chunk in chunks]
-
-        for i, future in enumerate(concurrent.futures.as_completed(futures)):
-            transcript.extend(future.result())
-            progress = ((i + 1) / len(futures)) * 100
-            progress_bar.set(progress / 100)
-            progress_label.configure(text=f"Processing: {int(progress)}%")
-            root.update_idletasks()
-
-    transcript.sort(key=lambda x: x[0])
-    final_transcript = " ".join([text for _, text in transcript])
-    return final_transcript
 
 # File selection and transcription function
 def transcribe_file():
@@ -135,7 +107,7 @@ def transcribe_file():
             progress_label.configure(text="Awaiting File...")
             return
 
-        documents_folder = os.path.join(os.getenv('USERPROFILE'), 'Documents')
+        documents_folder = os.path.join(os.getenv('USERPROFILE', os.getenv('HOME')), 'Documents')
         temp_audio_folder = os.path.join(documents_folder, "JTA - Jared Transcription App")
         if not os.path.exists(temp_audio_folder):
             os.makedirs(temp_audio_folder)
@@ -149,7 +121,15 @@ def transcribe_file():
             extract_audio_from_video(file_path, temp_audio_path)
             file_path = temp_audio_path
 
+        # Temporarily update system PATH to prioritize custom ffmpeg
+        original_path = os.environ.get("PATH", "")
+        ffmpeg_dir = os.path.dirname(get_ffmpeg_path())
+        os.environ["PATH"] = f"{ffmpeg_dir}{os.pathsep}{original_path}"
+
         transcript = transcribe_audio(file_path)
+
+        # Restore the original PATH
+        os.environ["PATH"] = original_path
 
         save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
         if save_transcript_path:
@@ -181,3 +161,4 @@ root, select_file_button, progress_bar, progress_label = initialize_ui(
 
 if __name__ == "__main__":
     root.mainloop()
+

@@ -4,11 +4,11 @@ import os
 import sys
 
 # Attributes for the version name and number
-version_name = "Ginger"
-version_number = "1.3"
+version_name = "Okra"
+version_number = "2.0"
 app_background_color = "#EBEBEB"  
-accent_color = "#E9A365"  # Main color of the version
-dark_accent_color = "#9c6d43" # Mainly used for hovers
+accent_color = "#516426"  # Main color of the version
+dark_accent_color = "#273012" # Mainly used for hovers
 
 def initialize_ui(transcribe_file_command):
     if getattr(sys, 'frozen', False):
@@ -95,7 +95,7 @@ def initialize_ui(transcribe_file_command):
             settings_button.configure(fg_color="#dbdbdb")
         
     # Back button to return to the main frame
-    back_button = ctk.CTkButton(settings_frame, text="Back", command=lambda: show_frame(main_frame), fg_color=accent_color, hover_color="#9c6d43")
+    back_button = ctk.CTkButton(settings_frame, text="Back", command=lambda: show_frame(main_frame), fg_color=accent_color, hover_color=dark_accent_color)
     back_button.grid(row=3, column=0, padx=10, pady=20)
 
     # Function to switch between frames

@@ -4,11 +4,11 @@
 [Setup]
 ; General settings
 AppName=Jared Transcription App
-AppVersion=1.2
-DefaultDirName={pf}\JTA - Parsnip
-DefaultGroupName=JTA - Parsnip
+AppVersion=2.0
+DefaultDirName={pf}\JTA - Okra
+DefaultGroupName=JTA - Okra
 OutputDir="C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\dist"
-OutputBaseFilename=JTA_Parsnip_Installer
+OutputBaseFilename=JTA_Okra_Installer
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64  
@@ -38,6 +38,6 @@ Source: "C:\users\joeroberts\Documents\MarcyLabWorld\environment\Converter App\i
 
 [Icons]
 ; Create shortcut in the Start Menu
-Name: "{group}\JTA - Parsnip"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
+Name: "{group}\JTA - Okra"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
 ; Create shortcut on Desktop
-Name: "{commondesktop}\JTA - Parsnip"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
+Name: "{commondesktop}\JTA - Okra"; Filename: "{app}\jta_windows.exe"; IconFilename: "{app}\jta_logo.ico"
