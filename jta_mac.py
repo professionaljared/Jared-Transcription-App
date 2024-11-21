@@ -130,7 +130,7 @@ def transcribe_file():
 
         save_transcript_path = filedialog.asksaveasfilename(initialfile="Untitled", title="Save Transcript as", defaultextension=".txt")
         if save_transcript_path:
-            with open(save_transcript_path, "w") as f:
+            with open(save_transcript_path, "w", encoding="utf-8") as f:
                 f.write(transcript)
 
         temp_audio_path = get_temp_audio_path()
