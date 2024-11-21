@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-import sys
 import ssl
 import whisper
 import tqdm
@@ -51,7 +50,7 @@ def extract_audio_from_video(video_file_path, output_audio_path):
 
     try:
         subprocess.run(command, check=True)
-        progress_label.configure(text="Audio extraction completed successfully.")
+        progress_label.configure(text="Audio extraction complete. Waiting to Transcribe...")
         print("Audio extraction completed successfully.")
         progress_bar.stop()  
         progress_bar.configure(mode='determinate')
@@ -76,7 +75,6 @@ def transcribe_audio(audio_file_path):
     if not os.path.exists(audio_file_path):
         raise FileNotFoundError(f"The file {audio_file_path} was not found.")
 
-    progress_label.configure(text="Transcribing Audio...")
     progress_bar.configure(mode='determinate')
 
     # Monkey-patch tqdm to update the progress bar

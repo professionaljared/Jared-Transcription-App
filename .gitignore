@@ -13,3 +13,5 @@ __pycache__
 whisper-test.py
 whisper-test-2.py
 whisper-test-3.py
+
+whisper-backup.py
