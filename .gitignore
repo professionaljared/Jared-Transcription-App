@@ -1,17 +1,18 @@
-/model/*
-notes.txt
-/model/.gitkeep
+.gitkeep
 /build
 /output
-jta_main_optimized.py
+/dist
 /venv310
+/model
+__pycache__
+notes.txt
+jta_main_optimized.py
+setup.py
 settings.py
 setup_optimized.py
-dist/*
-__pycache__
-
 whisper-test.py
 whisper-test-2.py
 whisper-test-3.py
-
 whisper-backup.py
+
+# most of the hidden files are just for development purposes, not actually needed
