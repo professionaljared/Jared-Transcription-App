@@ -4,11 +4,9 @@
 /dist
 /venv310
 /model
+/deploy
 __pycache__
-notes.txt
 jta_main_optimized.py
-setup.py
-settings.py
 setup_optimized.py
 whisper-test.py
 whisper-test-2.py
